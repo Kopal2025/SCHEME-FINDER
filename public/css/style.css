@@ -1,0 +1,1011 @@
+/* =========================================================================
+   style.css — the one stylesheet for the whole site
+   1. Design system (variables)      7. Badges + status labels
+   2. Base                           8. Page-specific parts
+   3. Layout + navbar                9. Login / register page
+   4. Cards                         10. Toast
+   5. Buttons                       11. Phones
+   6. Forms + tables
+   ========================================================================= */
+
+/* ---------- 1. Design system ----------
+   Change a colour or size here and it changes everywhere. */
+:root {
+  /* Colours */
+  --primary: #4f46e5;          /* buttons, links, active nav */
+  --primary-dark: #4338ca;
+  --primary-light: #eef2ff;
+  --accent: #0d9488;           /* small highlights (logo, progress) */
+  --accent-light: #ccfbf1;
+  --success: #15803d;
+  --success-light: #dcfce7;
+  --warning: #b45309;
+  --warning-light: #fef3c7;
+  --error: #b91c1c;
+  --error-light: #fee2e2;
+  --info: #1d4ed8;
+  --info-light: #dbeafe;
+
+  --bg: #f5f6fb;               /* page background */
+  --card-bg: #ffffff;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;     /* borders on hover */
+  --white: #ffffff;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-hover: 0 4px 16px rgba(15, 23, 42, 0.10);
+  --shadow-primary: 0 4px 12px rgba(79, 70, 229, 0.25);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Type scale */
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --text-xs: 0.78rem;    /* badges */
+  --text-sm: 0.875rem;   /* small / muted text */
+  --text-base: 1rem;     /* body text */
+  --text-lg: 1.125rem;   /* card titles */
+  --text-xl: 1.375rem;   /* section headings */
+  --text-2xl: 1.875rem;  /* page titles */
+
+  --content-width: 1040px;
+  --transition: 0.15s ease;
+}
+
+/* ---------- 2. Base ---------- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1, h2, h3 {
+  margin: 0 0 var(--space-3);
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+h1 { font-size: var(--text-2xl); letter-spacing: -0.02em; }
+h2 { font-size: var(--text-xl); letter-spacing: -0.01em; }
+h3 { font-size: var(--text-lg); font-weight: 600; }
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+.muted { color: var(--text-muted); }
+.small { font-size: var(--text-sm); }
+.capitalize { text-transform: capitalize; }
+.hidden { display: none !important; }
+
+/* Visible keyboard focus on everything you can tab to */
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- 3. Layout + navbar ---------- */
+.container {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-7);
+}
+
+.page-header {
+  margin-bottom: var(--space-5);
+}
+
+.page-header h1 {
+  margin-bottom: var(--space-1);
+}
+
+.page-header p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.logo:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.logo-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  background: var(--accent-light);
+}
+
+/* min-width: 0 + overflow-x lets the links scroll sideways when the screen
+   is too narrow, so the Logout button is never pushed off the edge */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.navbar #logoutBtn {
+  flex-shrink: 0;
+}
+
+.nav-links a {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+
+.nav-links a:hover {
+  background: var(--bg);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-links a.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ---------- 4. Cards ---------- */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.card-header h2 {
+  margin: 0;
+}
+
+.empty-state,
+.loading {
+  grid-column: 1 / -1;
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.empty-state .empty-icon {
+  display: block;
+  font-size: 2rem;
+  margin-bottom: var(--space-2);
+}
+
+/* ---------- 5. Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition),
+              box-shadow var(--transition), transform var(--transition);
+}
+
+.btn:hover {
+  background: var(--bg);
+  border-color: var(--border-strong);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: var(--white);
+  box-shadow: var(--shadow-primary);
+}
+
+.btn-danger {
+  color: var(--error);
+  border-color: var(--error-light);
+}
+
+.btn-danger:hover {
+  background: var(--error-light);
+  border-color: var(--error-light);
+  color: var(--error);
+}
+
+.btn-small {
+  padding: 6px var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* Disabled / loading state (e.g. while "Saving...") */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+/* ---------- 6. Forms + tables ---------- */
+label {
+  display: block;
+  margin: var(--space-4) 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 10px var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-base);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--border-strong);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+input:disabled,
+select:disabled {
+  background: var(--bg);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+select[multiple] {
+  padding: var(--space-1);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--space-5);
+}
+
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.form-section {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.check-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
+}
+
+/* Inline messages above forms */
+.alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.alert-error   { background: var(--error-light);   color: var(--error);   }
+.alert-success { background: var(--success-light); color: var(--success); }
+.alert-warning { background: var(--warning-light); color: var(--warning); }
+
+/* Tables scroll sideways inside their card on small screens */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+th,
+td {
+  padding: var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+tbody tr {
+  transition: background var(--transition);
+}
+
+tbody tr:hover {
+  background: var(--bg);
+}
+
+td.actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ---------- 7. Badges + status labels ---------- */
+.badge,
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Small coloured dot before the badge text */
+.badge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge-eligible { background: var(--success-light); color: var(--success); }
+.badge-possible { background: var(--warning-light); color: var(--warning); }
+.badge-not      { background: var(--error-light);   color: var(--error); }
+.badge-soon     { background: var(--error);         color: var(--white); }
+
+.status-saved        { background: var(--primary-light); color: var(--primary); }
+.status-applied      { background: var(--info-light);    color: var(--info); }
+.status-under_review { background: var(--warning-light); color: var(--warning); }
+.status-approved     { background: var(--success-light); color: var(--success); }
+.status-rejected     { background: var(--error-light);   color: var(--error); }
+
+.tag {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  margin-right: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Tags sitting on the page background (not in a card) need a white chip */
+.page-header .tag {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+}
+
+/* One-line eligibility reason with a coloured bar on the left */
+.reason {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--bg);
+  font-size: var(--text-sm);
+}
+
+.reason-eligible { border-left-color: var(--success); }
+.reason-possible { border-left-color: var(--warning); }
+.reason-not      { border-left-color: var(--error); }
+
+/* ---------- 8. Page-specific parts ---------- */
+
+/* Dashboard + admin counts */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.stat-grid .card {
+  margin-bottom: 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stat-label {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.stat-number {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--primary);
+}
+
+.progress {
+  height: 8px;
+  margin: var(--space-2) 0;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width 0.6s ease;
+}
+
+.mini-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mini-row:last-child {
+  border-bottom: none;
+}
+
+/* Schemes page */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-3);
+}
+
+.filters .search-box {
+  grid-column: 1 / -1;
+}
+
+.result-count {
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.scheme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+
+.scheme-card {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.scheme-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.scheme-card p {
+  margin: var(--space-1) 0;
+  font-size: var(--text-sm);
+}
+
+.scheme-card .btn {
+  align-self: flex-start;
+  margin-top: auto; /* keeps the button at the bottom of every card */
+}
+
+.scheme-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.scheme-card-top h1,
+.scheme-card-top h3 {
+  margin: 0;
+}
+
+.scheme-card-top h3 a,
+.list-row h3 a,
+.mini-row a {
+  color: var(--text);
+}
+
+.scheme-card-top h3 a:hover,
+.list-row h3 a:hover,
+.mini-row a:hover {
+  color: var(--primary);
+}
+
+.info-line {
+  font-size: var(--text-sm);
+}
+
+/* Scheme detail page */
+.back-link {
+  display: inline-block;
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--space-4);
+}
+
+.criteria-list,
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0;
+}
+
+.criterion {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.criterion:last-child {
+  border-bottom: none;
+}
+
+.criterion-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.criterion-pass .criterion-icon    { background: var(--success-light); color: var(--success); }
+.criterion-fail .criterion-icon    { background: var(--error-light);   color: var(--error); }
+.criterion-unknown .criterion-icon { background: var(--warning-light); color: var(--warning); }
+
+.explanation {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--primary-light);
+  font-size: var(--text-sm);
+}
+
+.explanation p {
+  margin: var(--space-1) 0;
+}
+
+.checklist li {
+  border-bottom: 1px solid var(--border);
+}
+
+.checklist li:last-child {
+  border-bottom: none;
+}
+
+.check-row.done span {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+/* Deadlines + My Applications rows */
+.list-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  transition: box-shadow var(--transition);
+}
+
+.list-row:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.list-row-main {
+  flex: 1;
+  min-width: 220px;
+}
+
+.list-row h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+}
+
+.list-row p {
+  margin: 0;
+}
+
+.list-row .status-select {
+  width: auto;
+  min-width: 150px;
+}
+
+.date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 96px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.date-box strong {
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+/* Deadlines in the next few days */
+.closing-soon {
+  border-left: 4px solid var(--error);
+}
+
+.closing-soon .date-box {
+  background: var(--error-light);
+  color: var(--error);
+}
+
+/* ---------- 9. Login / register page ---------- */
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-4);
+  background: linear-gradient(135deg, var(--primary-light), var(--bg) 60%);
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  width: 100%;
+  max-width: 920px;
+  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hover);
+}
+
+.auth-intro {
+  padding: var(--space-7) var(--space-6);
+  background: linear-gradient(160deg, var(--primary), var(--primary-dark));
+  color: var(--white);
+}
+
+.auth-intro .logo {
+  color: var(--white);
+  margin-bottom: var(--space-6);
+}
+
+.auth-intro .logo-icon {
+  background: rgba(255, 255, 255, 0.18); /* see-through white on the blue panel */
+}
+
+.auth-intro h1 {
+  font-size: var(--text-2xl);
+}
+
+.auth-intro p {
+  opacity: 0.9;
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-5) 0 0;
+}
+
+.feature-list li {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.auth-box {
+  padding: var(--space-7) var(--space-6);
+}
+
+.auth-box form .btn-full {
+  margin-top: var(--space-5);
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.tab {
+  flex: 1;
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  background: var(--card-bg);
+  color: var(--primary);
+  box-shadow: var(--shadow);
+}
+
+.demo-note {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---------- 10. Toast ---------- */
+.toast {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 100;
+  max-width: 340px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  color: var(--white);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-success { background: var(--success); }
+.toast-error   { background: var(--error); }
+
+/* ---------- 11. Phones ---------- */
+@media (max-width: 760px) {
+  /* Navbar: logo + logout on top, links in a row you can swipe sideways */
+  .navbar {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4) var(--space-2);
+  }
+
+  .navbar #logoutBtn {
+    margin-left: auto;
+  }
+
+  .nav-links {
+    order: 3;
+    flex-basis: 100%;
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+  }
+
+  .container {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  h1 { font-size: 1.5rem; }
+
+  .card {
+    padding: var(--space-4);
+  }
+
+  .form-grid,
+  .detail-grid,
+  .scheme-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-intro {
+    padding: var(--space-5);
+  }
+
+  .auth-intro .logo {
+    margin-bottom: var(--space-4);
+  }
+
+  .auth-intro .feature-list {
+    display: none; /* keep the phone login screen short */
+  }
+
+  .auth-box {
+    padding: var(--space-5);
+  }
+
+  .list-row .status-select {
+    flex: 1;
+  }
+
+  .toast {
+    left: var(--space-4);
+    right: var(--space-4);
+    bottom: var(--space-4);
+    max-width: none;
+  }
+}

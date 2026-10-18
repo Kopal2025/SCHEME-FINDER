@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Applications | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo"><span class="logo-icon">🎓</span> Scheme Finder</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="profile.html">Profile</a>
+      <a href="schemes.html">Schemes</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="applications.html" class="active">My Applications</a>
+      <a href="admin.html" id="adminLink" class="hidden">Admin</a>
+    </div>
+    <button type="button" id="logoutBtn" class="btn btn-small">Logout</button>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>My Applications</h1>
+      <p>Schemes you are tracking. Change the status here, or open a scheme to tick off documents.</p>
+    </header>
+
+    <div id="message" class="alert hidden" role="alert"></div>
+
+    <!-- Rows are inserted here by applications.js -->
+    <div id="applicationList">
+      <div class="loading">Loading your applications...</div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/applications.js"></script>
+</body>
+</html>

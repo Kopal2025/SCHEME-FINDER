@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo"><span class="logo-icon">🎓</span> Scheme Finder</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="profile.html">Profile</a>
+      <a href="schemes.html">Schemes</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="applications.html">My Applications</a>
+      <a href="admin.html" id="adminLink" class="active hidden">Admin</a>
+    </div>
+    <button type="button" id="logoutBtn" class="btn btn-small">Logout</button>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>Admin dashboard</h1>
+      <p>Add, edit or delete schemes. Changes are visible to all users straight away.</p>
+    </header>
+
+    <div id="message" class="alert hidden" role="alert"></div>
+
+    <!-- Counts -->
+    <div class="stat-grid">
+      <div class="card stat"><span class="stat-label">Registered users</span><span class="stat-number" id="userCount">–</span></div>
+      <div class="card stat"><span class="stat-label">Schemes</span><span class="stat-number" id="schemeCount">–</span></div>
+      <div class="card stat"><span class="stat-label">Applications tracked</span><span class="stat-number" id="applicationCount">–</span></div>
+    </div>
+
+    <!-- All schemes -->
+    <div class="card">
+      <div class="card-header">
+        <h2>All schemes</h2>
+        <button type="button" id="addBtn" class="btn btn-primary btn-small">+ Add scheme</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Provider</th><th>Type</th><th>Deadline</th><th></th></tr>
+          </thead>
+          <tbody id="schemeTable">
+            <tr><td colspan="5" class="muted">Loading schemes...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Add / edit form (hidden until "Add scheme" or "Edit" is clicked) -->
+    <form id="schemeForm" class="card hidden" novalidate>
+      <h2 id="formTitle">Add scheme</h2>
+
+      <div class="form-grid">
+        <div class="full">
+          <label for="name">Scheme name *</label>
+          <input type="text" id="name" maxlength="150">
+        </div>
+
+        <div>
+          <label for="provider">Provider *</label>
+          <select id="provider">
+            <option value="government">Government</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="type">Type *</label>
+          <select id="type">
+            <option value="scholarship">Scholarship</option>
+            <option value="welfare">Welfare</option>
+          </select>
+        </div>
+
+        <div class="full">
+          <label for="description">Description</label>
+          <textarea id="description" rows="3" maxlength="1000"></textarea>
+        </div>
+
+        <div>
+          <label for="benefit">Benefit</label>
+          <input type="text" id="benefit" maxlength="200" placeholder="e.g. ₹50,000 per year">
+        </div>
+
+        <div>
+          <label for="deadline">Deadline (empty = open all year)</label>
+          <input type="date" id="deadline">
+        </div>
+
+        <div class="full">
+          <label for="official_link">Official link</label>
+          <input type="url" id="official_link" placeholder="https://...">
+        </div>
+      </div>
+
+      <h3 class="form-section">Eligibility rules <span class="muted small">(leave empty for no restriction)</span></h3>
+
+      <div class="form-grid">
+        <div>
+          <label>Categories</label>
+          <div class="check-group" id="categoryChecks">
+            <label class="check-row"><input type="checkbox" value="General"> General</label>
+            <label class="check-row"><input type="checkbox" value="OBC"> OBC</label>
+            <label class="check-row"><input type="checkbox" value="SC"> SC</label>
+            <label class="check-row"><input type="checkbox" value="ST"> ST</label>
+            <label class="check-row"><input type="checkbox" value="EWS"> EWS</label>
+          </div>
+        </div>
+
+        <div>
+          <label>Education levels</label>
+          <div class="check-group" id="educationChecks">
+            <label class="check-row"><input type="checkbox" value="class10"> Class 10</label>
+            <label class="check-row"><input type="checkbox" value="class12"> Class 12</label>
+            <label class="check-row"><input type="checkbox" value="diploma"> Diploma</label>
+            <label class="check-row"><input type="checkbox" value="ug"> UG</label>
+            <label class="check-row"><input type="checkbox" value="pg"> PG</label>
+          </div>
+        </div>
+
+        <div class="full">
+          <label for="allowed_states">States</label>
+          <select id="allowed_states" multiple size="6"></select>
+          <p class="hint">Hold Ctrl (Cmd on Mac) and click to pick several. Pick none for "all states".</p>
+        </div>
+
+        <div>
+          <label for="gender">Gender</label>
+          <select id="gender">
+            <option value="any">Any</option>
+            <option value="female">Female only</option>
+            <option value="male">Male only</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="max_income">Max family income (₹/year)</label>
+          <input type="number" id="max_income" min="0" step="1">
+        </div>
+
+        <div>
+          <label for="min_marks">Min marks (%)</label>
+          <input type="number" id="min_marks" min="0" max="100" step="0.01">
+        </div>
+
+        <div>
+          <label>Disability</label>
+          <label class="check-row">
+            <input type="checkbox" id="disability_required"> Only for persons with a disability
+          </label>
+        </div>
+
+        <div>
+          <label for="min_age">Min age</label>
+          <input type="number" id="min_age" min="0" max="120" step="1">
+        </div>
+
+        <div>
+          <label for="max_age">Max age</label>
+          <input type="number" id="max_age" min="0" max="120" step="1">
+        </div>
+
+        <div class="full">
+          <label for="required_documents">Required documents</label>
+          <input type="text" id="required_documents" placeholder="Aadhaar Card, Income Certificate, Bank Passbook">
+          <p class="hint">Separate documents with commas.</p>
+        </div>
+      </div>
+
+      <div id="formMessage" class="alert hidden" role="alert"></div>
+
+      <div class="button-row">
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save scheme</button>
+        <button type="button" id="cancelBtn" class="btn">Cancel</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

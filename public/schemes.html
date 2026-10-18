@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schemes | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo"><span class="logo-icon">🎓</span> Scheme Finder</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="profile.html">Profile</a>
+      <a href="schemes.html" class="active">Schemes</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="applications.html">My Applications</a>
+      <a href="admin.html" id="adminLink" class="hidden">Admin</a>
+    </div>
+    <button type="button" id="logoutBtn" class="btn btn-small">Logout</button>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>Schemes</h1>
+      <p>Every scheme is checked against your profile. Use the filters to narrow the list.</p>
+    </header>
+
+    <!-- Shown only if the profile has empty fields -->
+    <div id="profileReminder" class="alert alert-warning hidden">
+      Your profile is not complete, so some results may say "Possibly Eligible".
+      <a href="profile.html">Complete your profile →</a>
+    </div>
+
+    <!-- Search + filters. Each value here becomes a ?key=value in the API URL. -->
+    <form id="filters" class="card filters" role="search">
+      <input type="search" id="search" class="search-box" placeholder="🔍  Search by scheme name..." aria-label="Search by scheme name">
+
+      <select id="type" aria-label="Type">
+        <option value="">All types</option>
+        <option value="scholarship">Scholarship</option>
+        <option value="welfare">Welfare</option>
+      </select>
+
+      <select id="provider" aria-label="Provider">
+        <option value="">All providers</option>
+        <option value="government">Government</option>
+        <option value="private">Private</option>
+      </select>
+
+      <select id="state" aria-label="State">
+        <option value="">All states</option>
+        <!-- filled by fillStateOptions() in schemes.js -->
+      </select>
+
+      <select id="education" aria-label="Education level">
+        <option value="">All education levels</option>
+        <option value="class10">Class 10</option>
+        <option value="class12">Class 12</option>
+        <option value="diploma">Diploma</option>
+        <option value="ug">Undergraduate (UG)</option>
+        <option value="pg">Postgraduate (PG)</option>
+      </select>
+
+      <select id="match" aria-label="Match status">
+        <option value="">Any match status</option>
+        <option value="eligible">Eligible</option>
+        <option value="possible">Possibly Eligible</option>
+        <option value="not">Not Eligible</option>
+      </select>
+
+      <button type="reset" class="btn">Clear filters</button>
+    </form>
+
+    <p id="resultCount" class="result-count"></p>
+    <div id="message" class="alert hidden" role="alert"></div>
+
+    <!-- Scheme cards are inserted here by schemes.js -->
+    <div id="schemeList" class="scheme-grid">
+      <div class="loading">Loading schemes...</div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/schemes.js"></script>
+</body>
+</html>

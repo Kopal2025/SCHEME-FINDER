@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo"><span class="logo-icon">🎓</span> Scheme Finder</a>
+    <div class="nav-links">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="profile.html">Profile</a>
+      <a href="schemes.html">Schemes</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="applications.html">My Applications</a>
+      <a href="admin.html" id="adminLink" class="hidden">Admin</a>
+    </div>
+    <button type="button" id="logoutBtn" class="btn btn-small">Logout</button>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1 id="welcome">Loading your dashboard...</h1>
+      <p id="roleNote">Here is a quick overview of your schemes.</p>
+    </header>
+
+    <div id="message" class="alert hidden" role="alert"></div>
+
+    <div class="stat-grid">
+      <!-- Profile completion -->
+      <div class="card stat">
+        <span class="stat-label">Profile complete</span>
+        <span class="stat-number" id="profilePercent">–</span>
+        <div class="progress"><div class="progress-bar" id="profileBar"></div></div>
+        <a href="profile.html" class="small" id="profileLink">Edit profile</a>
+      </div>
+
+      <!-- Eligible schemes -->
+      <div class="card stat">
+        <span class="stat-label">Schemes you are eligible for</span>
+        <span class="stat-number" id="eligibleCount">–</span>
+        <a href="schemes.html" class="small">Browse all schemes →</a>
+      </div>
+    </div>
+
+    <!-- Next 3 deadlines -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Next deadlines</h2>
+        <a href="deadlines.html" class="small">See all →</a>
+      </div>
+      <div id="nextDeadlines"><p class="muted">Loading deadlines...</p></div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

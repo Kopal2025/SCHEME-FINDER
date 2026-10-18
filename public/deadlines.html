@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deadlines | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo"><span class="logo-icon">🎓</span> Scheme Finder</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="profile.html">Profile</a>
+      <a href="schemes.html">Schemes</a>
+      <a href="deadlines.html" class="active">Deadlines</a>
+      <a href="applications.html">My Applications</a>
+      <a href="admin.html" id="adminLink" class="hidden">Admin</a>
+    </div>
+    <button type="button" id="logoutBtn" class="btn btn-small">Logout</button>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>Upcoming deadlines</h1>
+      <p>Schemes you are eligible for or have saved, closest deadline first.
+        Deadlines in the next 7 days are marked "Closing soon".</p>
+    </header>
+
+    <div id="message" class="alert hidden" role="alert"></div>
+
+    <!-- Rows are inserted here by deadlines.js -->
+    <div id="deadlineList">
+      <div class="loading">Loading deadlines...</div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/deadlines.js"></script>
+</body>
+</html>

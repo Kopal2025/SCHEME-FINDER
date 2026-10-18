@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scheme Details | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo"><span class="logo-icon">🎓</span> Scheme Finder</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="profile.html">Profile</a>
+      <a href="schemes.html" class="active">Schemes</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="applications.html">My Applications</a>
+      <a href="admin.html" id="adminLink" class="hidden">Admin</a>
+    </div>
+    <button type="button" id="logoutBtn" class="btn btn-small">Logout</button>
+  </nav>
+
+  <main class="container">
+    <a href="schemes.html" class="back-link">← Back to all schemes</a>
+
+    <div id="message" class="alert hidden" role="alert"></div>
+    <div id="loading" class="loading">Loading scheme...</div>
+
+    <!-- Hidden until the scheme has loaded -->
+    <div id="content" class="hidden">
+
+      <!-- 1. Scheme details -->
+      <header class="page-header">
+        <div class="scheme-card-top">
+          <h1 id="name"></h1>
+          <span id="badge" class="badge"></span>
+        </div>
+        <p id="tags"></p>
+      </header>
+
+      <div class="card">
+        <p id="description"></p>
+        <p class="info-line"><strong>Benefit:</strong> <span id="benefit"></span></p>
+        <p class="info-line"><strong>Deadline:</strong> <span id="deadline"></span></p>
+        <a id="officialLink" class="btn btn-primary" target="_blank" rel="noopener">Official website ↗</a>
+      </div>
+
+      <!-- 2. Eligibility check, criterion by criterion -->
+      <div class="card">
+        <h2>Can I apply?</h2>
+        <p id="summary" class="reason"></p>
+        <ul id="criteria" class="criteria-list"></ul>
+
+        <button type="button" id="explainBtn" class="btn">💡 Explain in simple words</button>
+        <div id="explanation" class="explanation hidden"></div>
+      </div>
+
+      <div class="detail-grid">
+        <!-- 3. Application status -->
+        <div class="card">
+          <h2>My application</h2>
+          <p class="muted small">Track where you are with this scheme.</p>
+          <label for="status">Application status</label>
+          <select id="status">
+            <option value="">Not tracking this scheme</option>
+            <option value="saved">Saved</option>
+            <option value="applied">Applied</option>
+            <option value="under_review">Under review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <p id="statusMessage" class="hint"></p>
+        </div>
+
+        <!-- 4. Document checklist -->
+        <div class="card">
+          <h2>Document checklist</h2>
+          <p id="docProgress" class="muted small"></p>
+          <div class="progress"><div class="progress-bar" id="docBar"></div></div>
+          <ul id="documents" class="checklist"></ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/scheme.js"></script>
+</body>
+</html>

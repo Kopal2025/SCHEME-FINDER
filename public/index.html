@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-page">
+
+  <div class="auth-layout">
+
+    <!-- Left: short intro about the app -->
+    <section class="auth-intro">
+      <div class="logo"><span class="logo-icon">🎓</span> Scheme Finder</div>
+      <h1>Find the scholarships you can actually apply for.</h1>
+      <p>Fill in your details once and we check every scheme for you.</p>
+      <ul class="feature-list">
+        <li><span>✅</span> See if you are Eligible, Possibly Eligible or Not Eligible</li>
+        <li><span>💬</span> Understand exactly why, in plain sentences</li>
+        <li><span>📅</span> Never miss a deadline for schemes you qualify for</li>
+        <li><span>📄</span> Keep a checklist of documents for each application</li>
+      </ul>
+    </section>
+
+    <!-- Right: login / register forms -->
+    <section class="auth-box">
+      <h2 id="formHeading">Welcome back</h2>
+      <p class="muted small" id="formSubheading">Log in to see your matching schemes.</p>
+
+      <div class="tabs" role="tablist">
+        <button type="button" id="loginTab" class="tab active" role="tab">Login</button>
+        <button type="button" id="registerTab" class="tab" role="tab">Register</button>
+      </div>
+
+      <!-- Error messages are shown here -->
+      <div id="message" class="alert hidden" role="alert"></div>
+
+      <!-- Login form -->
+      <form id="loginForm" novalidate>
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password">
+
+        <button type="submit" class="btn btn-primary btn-full" id="loginBtn">Login</button>
+      </form>
+
+      <!-- Register form (hidden until the Register tab is clicked) -->
+      <form id="registerForm" class="hidden" novalidate>
+        <label for="regName">Full name</label>
+        <input type="text" id="regName" placeholder="e.g. Priya Sharma" autocomplete="name">
+
+        <label for="regEmail">Email</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+
+        <label for="regPassword">Password</label>
+        <input type="password" id="regPassword" placeholder="At least 6 characters" autocomplete="new-password">
+
+        <button type="submit" class="btn btn-primary btn-full" id="registerBtn">Create account</button>
+      </form>
+
+      <p class="demo-note">
+        Demo accounts: <strong>student@test.com</strong> / student123 &nbsp;·&nbsp;
+        <strong>admin@test.com</strong> / admin123
+      </p>
+    </section>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>

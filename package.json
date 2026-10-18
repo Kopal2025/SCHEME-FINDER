@@ -1,0 +1,21 @@
+{
+  "name": "scholarship-welfare-finder",
+  "version": "1.0.0",
+  "description": "Find scholarships and welfare schemes you are eligible for (Web Technology course project)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3"
+  }
+}

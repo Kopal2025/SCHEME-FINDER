@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile | Scheme Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo"><span class="logo-icon">🎓</span> Scheme Finder</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="profile.html" class="active">Profile</a>
+      <a href="schemes.html">Schemes</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="applications.html">My Applications</a>
+      <a href="admin.html" id="adminLink" class="hidden">Admin</a>
+    </div>
+    <button type="button" id="logoutBtn" class="btn btn-small">Logout</button>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>My Profile</h1>
+      <p>These details are used to check which schemes you are eligible for.
+        You can leave a field empty, but then some schemes will show "Possibly Eligible".</p>
+    </header>
+
+    <div id="message" class="alert hidden" role="alert"></div>
+
+    <form id="profileForm" class="card" novalidate>
+      <p id="loadingText" class="muted">Loading your profile...</p>
+
+      <div class="form-grid">
+        <div>
+          <label for="date_of_birth">Date of birth</label>
+          <input type="date" id="date_of_birth">
+        </div>
+
+        <div>
+          <label for="gender">Gender</label>
+          <select id="gender">
+            <option value="">-- Select --</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="state">State</label>
+          <select id="state">
+            <option value="">-- Select --</option>
+            <!-- filled by fillStateOptions() in profile.js -->
+          </select>
+        </div>
+
+        <div>
+          <label for="category">Category</label>
+          <select id="category">
+            <option value="">-- Select --</option>
+            <option value="General">General</option>
+            <option value="OBC">OBC</option>
+            <option value="SC">SC</option>
+            <option value="ST">ST</option>
+            <option value="EWS">EWS</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="annual_income">Family annual income (₹)</label>
+          <input type="number" id="annual_income" min="0" step="1" placeholder="e.g. 200000">
+          <p class="hint">Total yearly income of your family, in rupees.</p>
+        </div>
+
+        <div>
+          <label for="education_level">Current education level</label>
+          <select id="education_level">
+            <option value="">-- Select --</option>
+            <option value="class10">Class 10</option>
+            <option value="class12">Class 12</option>
+            <option value="diploma">Diploma</option>
+            <option value="ug">Undergraduate (UG)</option>
+            <option value="pg">Postgraduate (PG)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="marks_percent">Marks in last exam (%)</label>
+          <input type="number" id="marks_percent" min="0" max="100" step="0.01" placeholder="e.g. 78.5">
+        </div>
+
+        <div>
+          <label for="has_disability">Person with disability?</label>
+          <select id="has_disability">
+            <option value="">-- Select --</option>
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save profile</button>
+        <a href="schemes.html" class="btn">See matching schemes →</a>
+      </div>
+    </form>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/profile.js"></script>
+</body>
+</html>
