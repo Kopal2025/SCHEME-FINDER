@@ -25,6 +25,14 @@ function cleanText(value) {
   return text === '' ? null : text;
 }
 
+// true for a real calendar date like '2005-06-15'; false for '2005-02-30'
+function isRealDate(text) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const [year, month, day] = text.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/profile
 // Request:  no body, just the Authorization header
@@ -32,8 +40,8 @@ function cleanText(value) {
 // Response: 200 { profile: { date_of_birth, gender, state, ... } }
 //           every field is null if the user has not saved a profile yet
 // ---------------------------------------------------------------------------
-router.get('/', requireAuth, (req, res) => {
-  const row = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(req.user.id);
+router.get('/', requireAuth, async (req, res) => {
+  const row = await db.get('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
   if (!row) {
     return res.json({ profile: EMPTY_PROFILE });
   }
@@ -50,7 +58,7 @@ router.get('/', requireAuth, (req, res) => {
 // Response: 200 { message, profile }
 //           400 with an error message if any value is invalid
 // ---------------------------------------------------------------------------
-router.put('/', requireAuth, (req, res) => {
+router.put('/', requireAuth, async (req, res) => {
   const body = req.body || {};
 
   const profile = {
@@ -66,9 +74,8 @@ router.put('/', requireAuth, (req, res) => {
 
   // ---- Backend validation: check each field that was filled in ----
   if (profile.date_of_birth !== null) {
-    const isDateFormat = /^\d{4}-\d{2}-\d{2}$/.test(profile.date_of_birth);
     const date = new Date(profile.date_of_birth);
-    if (!isDateFormat || isNaN(date)) {
+    if (!isRealDate(profile.date_of_birth)) {
       return res.status(400).json({ error: 'Date of birth must be a valid date.' });
     }
     if (date > new Date()) {
@@ -112,11 +119,11 @@ router.put('/', requireAuth, (req, res) => {
   }
 
   // ---- Save: insert, or update if a row for this user already exists ----
-  db.prepare(`
+  // ("excluded" means "the values we just tried to insert")
+  await db.run(`
     INSERT INTO profiles (user_id, date_of_birth, gender, state, category, annual_income,
                           education_level, marks_percent, has_disability)
-    VALUES (@user_id, @date_of_birth, @gender, @state, @category, @annual_income,
-            @education_level, @marks_percent, @has_disability)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     ON CONFLICT (user_id) DO UPDATE SET
       date_of_birth   = excluded.date_of_birth,
       gender          = excluded.gender,
@@ -126,7 +133,8 @@ router.put('/', requireAuth, (req, res) => {
       education_level = excluded.education_level,
       marks_percent   = excluded.marks_percent,
       has_disability  = excluded.has_disability
-  `).run({ user_id: req.user.id, ...profile });
+  `, [req.user.id, profile.date_of_birth, profile.gender, profile.state, profile.category,
+    profile.annual_income, profile.education_level, profile.marks_percent, profile.has_disability]);
 
   res.json({ message: 'Profile saved.', profile });
 });

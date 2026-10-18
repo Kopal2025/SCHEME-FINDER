@@ -1,76 +1,140 @@
 // db.js
-// Opens the SQLite database file (data.sqlite), creates all tables if they
-// don't exist yet, and inserts seed data the first time the app runs.
-// Every route file does `const db = require('../db')` to use the same connection.
+// Connects to the PostgreSQL database given in the DATABASE_URL environment
+// variable, creates all tables if they don't exist yet, and inserts the seed
+// data (demo accounts + sample schemes) the first time.
+//
+// Every route file does `const db = require('../db')` and then uses:
+//   await db.get(sql, params)  -> the first row (or undefined)
+//   await db.all(sql, params)  -> an array of rows
+//   await db.run(sql, params)  -> the full result (result.rowCount, result.rows)
+// Values are passed separately as $1, $2, ... so they can never break the SQL
+// (this is what protects us from SQL injection).
 
-const path = require('path');
-const Database = require('better-sqlite3');
+const { Pool, types } = require('pg');
 const bcrypt = require('bcryptjs');
 
-// The database is a single file in the project root
-const db = new Database(path.join(__dirname, '..', 'data.sqlite'));
+// ---------------------------------------------------------------------------
+// 1. CONNECT
+// ---------------------------------------------------------------------------
 
-// SQLite does not enforce foreign keys unless we turn this on
-db.pragma('foreign_keys = ON');
+// The connection details (host, user, password) live ONLY in DATABASE_URL:
+// on Render it is set in the dashboard, locally it comes from .env.
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('ERROR: DATABASE_URL is not set. Add your PostgreSQL connection URL to .env (or to Render\'s Environment settings).');
+  process.exit(1);
+}
+
+// Render's *internal* database URL (used by the web service on Render) does not
+// need SSL. The *external* URL (to connect from your laptop) ends in
+// ".render.com" and requires SSL. DATABASE_SSL=true forces SSL for other hosts.
+const useSsl = process.env.DATABASE_SSL === 'true' || /\.render\.com/.test(connectionString);
+
+// A pool keeps a few connections open and reuses them for every request
+const pool = new Pool(useSsl
+  ? { connectionString, ssl: { rejectUnauthorized: false } }
+  : { connectionString });
+
+// If an idle connection drops (e.g. the database restarts), log it instead of crashing
+pool.on('error', (err) => console.error('PostgreSQL connection error:', err.message));
+
+// By default pg turns DATE and TIMESTAMP columns into JavaScript Date objects.
+// We keep them as plain text ('2026-10-22', '2026-10-22 09:30:00'), exactly
+// like the SQLite version did, so the rest of the code and the API stay the same.
+types.setTypeParser(1082, (value) => value); // DATE
+types.setTypeParser(1114, (value) => value); // TIMESTAMP
+
+async function all(sql, params = []) {
+  const result = await pool.query(sql, params);
+  return result.rows;
+}
+
+async function get(sql, params = []) {
+  const result = await pool.query(sql, params);
+  return result.rows[0];
+}
+
+async function run(sql, params = []) {
+  return pool.query(sql, params);
+}
+
+// Runs several queries as ONE transaction: either all of them are saved, or
+// (if any fails) none are. `work` receives a client and uses client.query().
+async function transaction(work) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await work(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release(); // give the connection back to the pool
+  }
+}
 
 // ---------------------------------------------------------------------------
-// 1. CREATE TABLES
+// 2. TABLES
 // List-type columns (allowed_states, allowed_categories, ...) are stored as
 // comma-separated text, e.g. "SC,ST". An empty value means "no restriction".
+// "IF NOT EXISTS" makes this safe to run on every start: existing tables
+// and their data are left alone.
 // ---------------------------------------------------------------------------
-db.exec(`
+const CREATE_TABLES = `
   CREATE TABLE IF NOT EXISTS users (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    id            SERIAL PRIMARY KEY,
     name          TEXT NOT NULL,
     email         TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TIMESTAMP NOT NULL DEFAULT NOW()
   );
 
   -- One profile row per user. Every field is optional, because a user may
   -- fill the profile partly (then schemes show "Possibly Eligible").
   CREATE TABLE IF NOT EXISTS profiles (
     user_id         INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    date_of_birth   TEXT,     -- 'YYYY-MM-DD'
-    gender          TEXT,     -- 'male' | 'female' | 'other'
-    state           TEXT,     -- e.g. 'Karnataka'
-    category        TEXT,     -- 'General' | 'OBC' | 'SC' | 'ST' | 'EWS'
-    annual_income   INTEGER,  -- family income in rupees per year
-    education_level TEXT,     -- 'class10' | 'class12' | 'diploma' | 'ug' | 'pg'
-    marks_percent   REAL,     -- last exam percentage
-    has_disability  INTEGER   -- 1 = yes, 0 = no
+    date_of_birth   DATE,
+    gender          TEXT,              -- 'male' | 'female' | 'other'
+    state           TEXT,              -- e.g. 'Karnataka'
+    category        TEXT,              -- 'General' | 'OBC' | 'SC' | 'ST' | 'EWS'
+    annual_income   INTEGER,           -- family income in rupees per year
+    education_level TEXT,              -- 'class10' | 'class12' | 'diploma' | 'ug' | 'pg'
+    marks_percent   DOUBLE PRECISION,  -- last exam percentage
+    has_disability  INTEGER            -- 1 = yes, 0 = no
   );
 
   CREATE TABLE IF NOT EXISTS schemes (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    id                  SERIAL PRIMARY KEY,
     name                TEXT NOT NULL,
     provider            TEXT NOT NULL CHECK (provider IN ('government', 'private')),
     type                TEXT NOT NULL CHECK (type IN ('scholarship', 'welfare')),
     description         TEXT,
     benefit             TEXT,
-    deadline            TEXT,               -- 'YYYY-MM-DD', NULL = open all year
+    deadline            DATE,                        -- NULL = open all year
     official_link       TEXT,
     -- eligibility rules (empty / NULL = no restriction)
-    allowed_states      TEXT DEFAULT '',    -- e.g. 'Karnataka'
-    allowed_categories  TEXT DEFAULT '',    -- e.g. 'SC,ST'
-    allowed_education   TEXT DEFAULT '',    -- e.g. 'ug,pg'
-    gender              TEXT DEFAULT 'any', -- 'any' | 'female' | 'male'
+    allowed_states      TEXT NOT NULL DEFAULT '',    -- e.g. 'Karnataka'
+    allowed_categories  TEXT NOT NULL DEFAULT '',    -- e.g. 'SC,ST'
+    allowed_education   TEXT NOT NULL DEFAULT '',    -- e.g. 'ug,pg'
+    gender              TEXT NOT NULL DEFAULT 'any', -- 'any' | 'female' | 'male'
     max_income          INTEGER,
-    min_marks           REAL,
+    min_marks           DOUBLE PRECISION,
     min_age             INTEGER,
     max_age             INTEGER,
-    disability_required INTEGER DEFAULT 0,  -- 1 = only for persons with disability
-    required_documents  TEXT DEFAULT ''     -- e.g. 'Aadhaar Card,Income Certificate'
+    disability_required INTEGER NOT NULL DEFAULT 0,  -- 1 = only for persons with disability
+    required_documents  TEXT NOT NULL DEFAULT ''     -- e.g. 'Aadhaar Card,Income Certificate'
   );
 
   CREATE TABLE IF NOT EXISTS applications (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     scheme_id  INTEGER NOT NULL REFERENCES schemes(id) ON DELETE CASCADE,
     status     TEXT NOT NULL DEFAULT 'saved'
                CHECK (status IN ('saved', 'applied', 'under_review', 'approved', 'rejected')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, scheme_id)   -- one application row per user per scheme
   );
 
@@ -81,10 +145,10 @@ db.exec(`
     is_done       INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, scheme_id, document_name)
   );
-`);
+`;
 
 // ---------------------------------------------------------------------------
-// 2. SEED DATA
+// 3. SEED DATA
 // ---------------------------------------------------------------------------
 
 // Returns a date N days from today as 'YYYY-MM-DD' (local time).
@@ -96,35 +160,12 @@ function daysFromToday(n) {
   return `${d.getFullYear()}-${month}-${day}`;
 }
 
-// Admin account: admin@test.com / admin123 (created only if it doesn't exist)
-const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@test.com');
-if (!adminExists) {
-  const hash = bcrypt.hashSync('admin123', 10);
-  db.prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')")
-    .run('Admin', 'admin@test.com', hash);
-  console.log('Seeded admin account: admin@test.com / admin123');
-}
-
-// Sample student account with a filled profile, for demos and testing:
-// student@test.com / student123
-const studentExists = db.prepare('SELECT id FROM users WHERE email = ?').get('student@test.com');
-if (!studentExists) {
-  const hash = bcrypt.hashSync('student123', 10);
-  const result = db.prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'user')")
-    .run('Priya Sharma', 'student@test.com', hash);
-  db.prepare(`
-    INSERT INTO profiles (user_id, date_of_birth, gender, state, category, annual_income,
-                          education_level, marks_percent, has_disability)
-    VALUES (?, '2005-06-15', 'female', 'Karnataka', 'SC', 200000, 'ug', 82, 0)
-  `).run(result.lastInsertRowid);
-  console.log('Seeded sample student: student@test.com / student123');
-}
-
 // SAMPLE DATA: these schemes are based on real Indian schemes, but the
 // amounts, limits and deadlines are simplified for this project and may not
 // match the official rules. Always check the official link.
-// Deadlines are set relative to the day the database is first created, so
-// some are always upcoming. Delete data.sqlite and restart to re-seed.
+// Deadlines are set relative to the day the schemes are first inserted.
+// (They are only inserted when the schemes table is empty, so an admin can
+// update the deadlines later from the Admin page.)
 const sampleSchemes = [
   {
     name: 'Post Matric Scholarship for SC Students',
@@ -260,21 +301,66 @@ const sampleSchemes = [
   }
 ];
 
-// Insert sample schemes only if the schemes table is empty
-const schemeCount = db.prepare('SELECT COUNT(*) AS count FROM schemes').get().count;
-if (schemeCount === 0) {
-  const insertScheme = db.prepare(`
-    INSERT INTO schemes (name, provider, type, description, benefit, deadline, official_link,
-      allowed_states, allowed_categories, allowed_education, gender, max_income, min_marks,
-      min_age, max_age, disability_required, required_documents)
-    VALUES (@name, @provider, @type, @description, @benefit, @deadline, @official_link,
-      @allowed_states, @allowed_categories, @allowed_education, @gender, @max_income, @min_marks,
-      @min_age, @max_age, @disability_required, @required_documents)
-  `);
-  for (const scheme of sampleSchemes) {
-    insertScheme.run(scheme);
+// Adds the demo accounts and sample schemes ONLY if they are missing.
+// It never deletes or changes existing rows, so user data survives restarts.
+async function seed(client) {
+  // Admin account: admin@test.com / admin123
+  // ON CONFLICT (email) DO NOTHING = skip it if that email already exists
+  const admin = await client.query(
+    `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'admin')
+     ON CONFLICT (email) DO NOTHING RETURNING id`,
+    ['Admin', 'admin@test.com', bcrypt.hashSync('admin123', 10)]
+  );
+  if (admin.rowCount === 1) console.log('Seeded admin account: admin@test.com / admin123');
+
+  // Sample student with a filled profile: student@test.com / student123
+  const student = await client.query(
+    `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'user')
+     ON CONFLICT (email) DO NOTHING RETURNING id`,
+    ['Priya Sharma', 'student@test.com', bcrypt.hashSync('student123', 10)]
+  );
+  // RETURNING only gives a row when the account was really created just now,
+  // so an existing student's profile is never overwritten.
+  if (student.rowCount === 1) {
+    await client.query(
+      `INSERT INTO profiles (user_id, date_of_birth, gender, state, category, annual_income,
+                             education_level, marks_percent, has_disability)
+       VALUES ($1, '2005-06-15', 'female', 'Karnataka', 'SC', 200000, 'ug', 82, 0)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [student.rows[0].id]
+    );
+    console.log('Seeded sample student: student@test.com / student123');
   }
-  console.log(`Seeded ${sampleSchemes.length} sample schemes`);
+
+  // Sample schemes: only when the table is completely empty (first start)
+  const { rows } = await client.query('SELECT COUNT(*)::int AS count FROM schemes');
+  if (rows[0].count === 0) {
+    for (const s of sampleSchemes) {
+      await client.query(
+        `INSERT INTO schemes (name, provider, type, description, benefit, deadline, official_link,
+           allowed_states, allowed_categories, allowed_education, gender, max_income, min_marks,
+           min_age, max_age, disability_required, required_documents)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+        [s.name, s.provider, s.type, s.description, s.benefit, s.deadline, s.official_link,
+          s.allowed_states, s.allowed_categories, s.allowed_education, s.gender, s.max_income, s.min_marks,
+          s.min_age, s.max_age, s.disability_required, s.required_documents]
+      );
+    }
+    console.log(`Seeded ${sampleSchemes.length} sample schemes`);
+  }
 }
 
-module.exports = db;
+// Called once by index.js before the server starts listening.
+// Everything runs in one transaction: if anything fails, nothing half-done is saved.
+async function initDb() {
+  await transaction(async (client) => {
+    // If two copies of the server start at the same moment (e.g. during a
+    // Render deploy), this lock makes the second one wait for the first.
+    await client.query('SELECT pg_advisory_xact_lock(20261018)');
+    await client.query(CREATE_TABLES);
+    await seed(client);
+  });
+  console.log('Connected to PostgreSQL, tables are ready');
+}
+
+module.exports = { get, all, run, transaction, initDb, pool };

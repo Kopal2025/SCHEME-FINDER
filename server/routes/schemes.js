@@ -7,7 +7,8 @@
 //   2. Express turns the part after "?" into an object:
 //        req.query = { type: 'scholarship', state: 'Karnataka', match: 'eligible' }
 //   3. search, type and provider are simple columns, so we filter in SQL by adding
-//      "AND ..." to the WHERE clause with a "?" placeholder for each value.
+//      "AND ..." to the WHERE clause with a numbered placeholder ($1, $2, ...)
+//      for each value.
 //   4. state and education are stored as comma-separated lists ("SC,ST"), and the
 //      match status doesn't exist in the database at all (we calculate it), so
 //      those filters are done in JavaScript with .filter() on the rows SQL gave us.
@@ -47,11 +48,12 @@ function prettyDate(date) {
   return `${day} ${months[month - 1]} ${year}`;
 }
 
-// Reads the :id from the URL and returns the scheme row, or null
-function findScheme(idText) {
+// Reads the :id from the URL and returns the scheme row, or null.
+// (2147483647 is the biggest number a PostgreSQL INTEGER column can hold.)
+async function findScheme(idText) {
   const id = Number(idText);
-  if (!Number.isInteger(id) || id < 1) return null;
-  return db.prepare('SELECT * FROM schemes WHERE id = ?').get(id) || null;
+  if (!Number.isInteger(id) || id < 1 || id > 2147483647) return null;
+  return (await db.get('SELECT * FROM schemes WHERE id = $1', [id])) || null;
 }
 
 const TYPES = ['scholarship', 'welfare'];
@@ -74,7 +76,7 @@ const MATCHES = ['eligible', 'possible', 'not'];
 //                 profileComplete: true/false }
 //           400 if a filter value is not one of the allowed options
 // ---------------------------------------------------------------------------
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   // Step 2: read the filters from the URL (missing ones become '')
   const search = (req.query.search || '').trim();
   const type = req.query.type || '';
@@ -93,26 +95,27 @@ router.get('/', requireAuth, (req, res) => {
   // Step 3: build the SQL query piece by piece.
   // "WHERE 1 = 1" is always true; it just lets every filter start with "AND".
   // Values go into params (never pasted into the SQL text) to avoid SQL injection.
+  // Each value we push gets the next number: the first is $1, the second $2...
   let sql = 'SELECT * FROM schemes WHERE 1 = 1';
   const params = [];
 
   if (search) {
-    // LIKE is case-insensitive in SQLite. % and _ are wildcards in LIKE, so we
-    // put a \ in front of any the user typed, to search for them as plain text.
-    sql += " AND name LIKE ? ESCAPE '\\'";
+    // ILIKE = LIKE that ignores capital letters. % and _ are wildcards in LIKE,
+    // so we put a \ in front of any the user typed, to search for them as plain text.
     params.push('%' + search.replace(/[\\%_]/g, '\\$&') + '%');
+    sql += ` AND name ILIKE $${params.length}`;
   }
   if (type) {
-    sql += ' AND type = ?';
     params.push(type);
+    sql += ` AND type = $${params.length}`;
   }
   if (provider) {
-    sql += ' AND provider = ?';
     params.push(provider);
+    sql += ` AND provider = $${params.length}`;
   }
   sql += ' ORDER BY name';
 
-  let schemes = db.prepare(sql).all(...params);
+  let schemes = await db.all(sql, params);
 
   // Step 4a: state / education filters in JavaScript.
   // An empty list on the scheme means "open to all", so it always passes.
@@ -130,7 +133,7 @@ router.get('/', requireAuth, (req, res) => {
   }
 
   // Step 4b: work out eligibility for every scheme using the user's profile
-  const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(req.user.id);
+  const profile = await db.get('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
   schemes = schemes.map((s) => ({ ...s, eligibility: checkEligibility(profile, s) }));
 
   // ...and then filter by match status if one was chosen
@@ -159,15 +162,16 @@ router.get('/', requireAuth, (req, res) => {
 //                                eligibility_status, application_status } ] }
 //           Only schemes the user is Eligible for OR has saved/applied to.
 // ---------------------------------------------------------------------------
-router.get('/deadlines', requireAuth, (req, res) => {
+router.get('/deadlines', requireAuth, async (req, res) => {
   const today = todayString();
 
-  // Dates stored as 'YYYY-MM-DD' can be compared and sorted as plain text
-  const schemes = db
-    .prepare('SELECT * FROM schemes WHERE deadline IS NOT NULL AND deadline >= ? ORDER BY deadline')
-    .all(today);
-  const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(req.user.id);
-  const applications = db.prepare('SELECT scheme_id, status FROM applications WHERE user_id = ?').all(req.user.id);
+  // deadline is a DATE column, so PostgreSQL compares and sorts it as a real date
+  const schemes = await db.all(
+    'SELECT * FROM schemes WHERE deadline IS NOT NULL AND deadline >= $1 ORDER BY deadline',
+    [today]
+  );
+  const profile = await db.get('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
+  const applications = await db.all('SELECT scheme_id, status FROM applications WHERE user_id = $1', [req.user.id]);
 
   // { schemeId: status } so we can look up a scheme's status quickly
   const statusByScheme = {};
@@ -204,16 +208,17 @@ router.get('/deadlines', requireAuth, (req, res) => {
 //                 documents: [ { name, is_done } ], application: { status, updated_at } | null }
 //           404 if there is no scheme with that id
 // ---------------------------------------------------------------------------
-router.get('/:id', requireAuth, (req, res) => {
-  const scheme = findScheme(req.params.id);
+router.get('/:id', requireAuth, async (req, res) => {
+  const scheme = await findScheme(req.params.id);
   if (!scheme) return res.status(404).json({ error: 'Scheme not found.' });
 
-  const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(req.user.id);
+  const profile = await db.get('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
 
   // Which documents has the user already ticked for this scheme?
-  const doneRows = db
-    .prepare('SELECT document_name FROM document_checklist WHERE user_id = ? AND scheme_id = ? AND is_done = 1')
-    .all(req.user.id, scheme.id);
+  const doneRows = await db.all(
+    'SELECT document_name FROM document_checklist WHERE user_id = $1 AND scheme_id = $2 AND is_done = 1',
+    [req.user.id, scheme.id]
+  );
   const doneNames = doneRows.map((row) => row.document_name);
 
   const documents = toList(scheme.required_documents).map((name) => ({
@@ -221,9 +226,10 @@ router.get('/:id', requireAuth, (req, res) => {
     is_done: doneNames.includes(name)
   }));
 
-  const application = db
-    .prepare('SELECT status, updated_at FROM applications WHERE user_id = ? AND scheme_id = ?')
-    .get(req.user.id, scheme.id) || null;
+  const application = (await db.get(
+    'SELECT status, updated_at FROM applications WHERE user_id = $1 AND scheme_id = $2',
+    [req.user.id, scheme.id]
+  )) || null;
 
   res.json({
     scheme,
@@ -320,10 +326,10 @@ async function aiExplanation(scheme, eligibility) {
 //           rule-based text, so this button always works.
 // ---------------------------------------------------------------------------
 router.get('/:id/explain', requireAuth, async (req, res) => {
-  const scheme = findScheme(req.params.id);
+  const scheme = await findScheme(req.params.id);
   if (!scheme) return res.status(404).json({ error: 'Scheme not found.' });
 
-  const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(req.user.id);
+  const profile = await db.get('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
   const eligibility = checkEligibility(profile, scheme);
 
   if (anthropic) {

@@ -8,7 +8,7 @@ in the last column. Test accounts: `student@test.com` / `student123` and `admin@
 - ✅ **Browser**: checked automatically in headless Chrome (the real pages, real clicks through the DOM)
 - ☐ **Manual**: needs a person looking at the screen (listed again at the end)
 
-The sample deadlines are set relative to the day `data.sqlite` was created, so "3 days left" etc.
+The sample deadlines are set relative to the day the schemes were first inserted into the database, so "3 days left" etc.
 will differ on a newer database. The *order* and the *closing soon* rule stay the same.
 
 ---
@@ -156,14 +156,38 @@ will differ on a newer database. The *order* and the *closing soon* rule stay th
 | G10 | Broken JSON | `curl -X POST localhost:3000/api/auth/login -H "Content-Type: application/json" -d "{bad"` | 400 "The request body is not valid JSON." Server keeps running | ✅ API |
 | G11 | No JS errors | Open DevTools Console while using every page | No red errors | ✅ Browser |
 
+## 10. PostgreSQL (data survives restarts)
+
+| ID | Page / Feature | Steps | Expected result | Pass/Fail |
+|---|---|---|---|---|
+| PG01 | Save data | Register a new user, fill the profile, set a status, tick a document | All saved | ✅ API |
+| PG02 | Change demo data | Admin edits a sample scheme. The student changes their income | Saved | ✅ API |
+| PG03 | Same formats as before | Check the API replies | Counts and ids are numbers. Dates are `'YYYY-MM-DD'` text. `updated_at` starts with the date. ₹ symbols intact | ✅ API |
+| PG04 | Impossible dates | DOB `2005-02-30`, deadline `2026-02-30` | 400 error message (not a server error) | ✅ API |
+| PG05 | Bad ids | `/api/admin/schemes/abc`, `/api/schemes/99999999999` | 404 "Scheme not found." | ✅ API |
+| PG06 | Huge numbers | Income or max income `5000000000` | 400 error message | ✅ API |
+| PG07 | Empty request | POST `/api/auth/login` with no body | 400 (not 500) | ✅ API |
+| PG08 | Same email at the same moment | 5 registrations with one email at once | Exactly one account. The others get 409 | ✅ API |
+| PG09 | SQL injection | Log in with `' OR '1'='1`, search `'; DROP TABLE users; --` | Treated as plain text, nothing broken | ✅ API |
+| PG10 | **Restart: login** | Restart the server (on Render: Manual Deploy, or wait for it to sleep) → log in as the PG01 user | Works | ✅ API |
+| PG11 | **Restart: data** | Open that user's profile, the scheme status and the checklist | Everything still there | ✅ API |
+| PG12 | Restart: no duplicates | Count schemes and demo accounts | Still 12 schemes, 1 admin, 1 student. No "Seeded" lines in the log | ✅ API |
+| PG13 | Restart: no overwriting | Check the PG02 changes | Admin's edit and student's income are kept | ✅ API |
+| PG14 | Failed start is undone | Make the first start fail half-way | No tables and no half-created accounts are left behind (transaction rolled back) | ✅ (seen during testing) |
+| PG15 | No DATABASE_URL | Start without `DATABASE_URL` | Stops with "DATABASE_URL is not set…" and never uses SQLite | ✅ |
+
 ---
 
 ## Results of the last run
 
 | Run | Checks | Passed | Failed |
 |---|---|---|---|
-| API script | 75 | 75 | 0 |
-| Browser script (headless Chrome) | 61 | 61 | 0 |
+| API script (PostgreSQL) | 75 | 75 | 0 |
+| PostgreSQL checks (before + after a restart) | 14 | 14 | 0 |
+| Browser script (headless Chrome, PostgreSQL) | 61 | 61 | 0 |
+
+All runs used a real PostgreSQL 18.4 server on the developer's laptop. The connection to the actual
+Render database has to be checked after deploying (see "Checks you need to do yourself").
 
 ### Problems found while testing, and fixed
 | Found by | Problem | Fix |
@@ -184,6 +208,9 @@ will differ on a newer database. The *order* and the *closing soon* rule stay th
 6. **D01**: click "Official website ↗" and check it opens in a new tab.
 7. **Optional**: add `ANTHROPIC_API_KEY` to `.env`, restart, click 💡 Explain. The note should say
    "Written by AI (Claude)". This wasn't tested because there is no key in `.env`.
-8. Repeat a few of the main flows (A01, P02, M03, D06, D09, AD09) **by hand with a real mouse and
+8. **After deploying to Render:** register a test user and save a profile. Then in Render click
+   **Manual Deploy → Restart service** (or wait ~15 minutes for the app to sleep), log in again and check
+   the profile is still there (PG10–PG11 on the real database).
+9. Repeat a few of the main flows (A01, P02, M03, D06, D09, AD09) **by hand with a real mouse and
    keyboard**. The automated browser checks set values through the page's DOM rather than real key
    presses.

@@ -32,10 +32,11 @@ function createToken(user) {
 // Response: 201 { token, user: { id, name, email, role } }
 //           400 if input is invalid, 409 if the email is already registered
 // ---------------------------------------------------------------------------
-router.post('/register', (req, res) => {
-  const name = (req.body.name || '').trim();
-  const email = (req.body.email || '').trim().toLowerCase();
-  const password = req.body.password || '';
+router.post('/register', async (req, res) => {
+  const body = req.body || {}; // no JSON body at all -> treat as empty
+  const name = String(body.name || '').trim();
+  const email = String(body.email || '').trim().toLowerCase();
+  const password = String(body.password || '');
 
   // Backend validation (the frontend also checks, but never trust the client)
   if (!name || !email || !password) {
@@ -51,17 +52,28 @@ router.post('/register', (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters.' });
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const existing = await db.get('SELECT id FROM users WHERE email = $1', [email]);
   if (existing) {
     return res.status(409).json({ error: 'An account with this email already exists.' });
   }
 
   const passwordHash = bcrypt.hashSync(password, 10);
-  const result = db
-    .prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'user')")
-    .run(name, email, passwordHash);
+  let result;
+  try {
+    // RETURNING id gives us the id PostgreSQL just created for the new user
+    result = await db.run(
+      "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'user') RETURNING id",
+      [name, email, passwordHash]
+    );
+  } catch (err) {
+    // 23505 = unique violation: someone registered the same email a moment ago
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'An account with this email already exists.' });
+    }
+    throw err;
+  }
 
-  const user = { id: result.lastInsertRowid, name, email, role: 'user' };
+  const user = { id: result.rows[0].id, name, email, role: 'user' };
   res.status(201).json({ token: createToken(user), user });
 });
 
@@ -72,15 +84,16 @@ router.post('/register', (req, res) => {
 // Response: 200 { token, user: { id, name, email, role } }
 //           400 if fields are empty, 401 if email/password is wrong
 // ---------------------------------------------------------------------------
-router.post('/login', (req, res) => {
-  const email = (req.body.email || '').trim().toLowerCase();
-  const password = req.body.password || '';
+router.post('/login', async (req, res) => {
+  const body = req.body || {};
+  const email = String(body.email || '').trim().toLowerCase();
+  const password = String(body.password || '');
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Please enter both email and password.' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
 
   // Same message for "no such user" and "wrong password", so nobody can
   // find out which emails are registered.
@@ -101,10 +114,11 @@ router.post('/login', (req, res) => {
 // Response: 200 { user: { id, name, email, role, created_at } }
 //           401 if the token is missing/invalid or the user no longer exists
 // ---------------------------------------------------------------------------
-router.get('/me', requireAuth, (req, res) => {
-  const user = db
-    .prepare('SELECT id, name, email, role, created_at FROM users WHERE id = ?')
-    .get(req.user.id);
+router.get('/me', requireAuth, async (req, res) => {
+  const user = await db.get(
+    'SELECT id, name, email, role, created_at FROM users WHERE id = $1',
+    [req.user.id]
+  );
 
   if (!user) {
     return res.status(401).json({ error: 'User not found. Please log in again.' });

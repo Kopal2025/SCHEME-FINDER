@@ -7,7 +7,7 @@ require('dotenv').config(); // loads variables from .env into process.env
 
 const path = require('path');
 const express = require('express');
-require('./db'); // opening the database creates tables + seed data
+const { initDb } = require('./db'); // connects to PostgreSQL (DATABASE_URL)
 
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
@@ -50,6 +50,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong on the server.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+// First make sure the tables + seed data exist, THEN start accepting requests.
+// PORT comes from Render (or .env locally).
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Could not set up the database:', err.message);
+    process.exit(1);
+  });

@@ -33,6 +33,28 @@ function toNumberOrNull(value) {
   return Number(value);
 }
 
+// true for a real calendar date like '2026-12-31'; false for '2026-02-30'
+function isRealDate(text) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const [year, month, day] = text.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+// Turns the :id in the URL into a number, or null if it isn't a valid id.
+// (2147483647 is the biggest number a PostgreSQL INTEGER column can hold.)
+function parseId(idText) {
+  const id = Number(idText);
+  return Number.isInteger(id) && id >= 1 && id <= 2147483647 ? id : null;
+}
+
+// The 17 scheme values in the same order as the columns in the SQL below
+function schemeValues(s) {
+  return [s.name, s.provider, s.type, s.description, s.benefit, s.deadline, s.official_link,
+    s.allowed_states, s.allowed_categories, s.allowed_education, s.gender, s.max_income,
+    s.min_marks, s.min_age, s.max_age, s.disability_required, s.required_documents];
+}
+
 // Checks the form data sent by the admin page.
 // Returns { error: '...' } if something is wrong, or { scheme: {...} } ready for the database.
 function validateScheme(body) {
@@ -63,8 +85,7 @@ function validateScheme(body) {
   if (scheme.description.length > 1000) return { error: 'Description must be under 1000 characters.' };
   if (scheme.benefit.length > 200) return { error: 'Benefit must be under 200 characters.' };
 
-  if (scheme.deadline !== null &&
-      (!/^\d{4}-\d{2}-\d{2}$/.test(scheme.deadline) || isNaN(new Date(scheme.deadline)))) {
+  if (scheme.deadline !== null && !isRealDate(scheme.deadline)) {
     return { error: 'Deadline must be a valid date (or empty for "open all year").' };
   }
   if (scheme.official_link !== null && !/^https?:\/\//.test(scheme.official_link)) {
@@ -76,8 +97,9 @@ function validateScheme(body) {
   if (scheme.allowed_education.some((e) => !EDUCATION_LEVELS.includes(e))) return { error: 'Invalid education level.' };
   if (!GENDERS.includes(scheme.gender)) return { error: 'Gender must be any, female or male.' };
 
-  if (scheme.max_income !== null && (!Number.isInteger(scheme.max_income) || scheme.max_income < 0)) {
-    return { error: 'Max income must be a whole number of rupees.' };
+  if (scheme.max_income !== null &&
+      (!Number.isInteger(scheme.max_income) || scheme.max_income < 0 || scheme.max_income > 1000000000)) {
+    return { error: 'Max income must be a whole number of rupees (up to 100 crore).' };
   }
   if (scheme.min_marks !== null && (isNaN(scheme.min_marks) || scheme.min_marks < 0 || scheme.min_marks > 100)) {
     return { error: 'Min marks must be between 0 and 100.' };
@@ -106,11 +128,13 @@ function validateScheme(body) {
 // Request:  no body (admin token required)
 // Database: COUNTs rows in users (role 'user'), schemes and applications
 // Response: 200 { users, schemes, applications }
+// (PostgreSQL's COUNT gives a very big number type that pg returns as text,
+//  so "::int" turns it into a normal number for the JSON.)
 // ---------------------------------------------------------------------------
-router.get('/stats', (req, res) => {
-  const users = db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'user'").get().count;
-  const schemes = db.prepare('SELECT COUNT(*) AS count FROM schemes').get().count;
-  const applications = db.prepare('SELECT COUNT(*) AS count FROM applications').get().count;
+router.get('/stats', async (req, res) => {
+  const users = (await db.get("SELECT COUNT(*)::int AS count FROM users WHERE role = 'user'")).count;
+  const schemes = (await db.get('SELECT COUNT(*)::int AS count FROM schemes')).count;
+  const applications = (await db.get('SELECT COUNT(*)::int AS count FROM applications')).count;
   res.json({ users, schemes, applications });
 });
 
@@ -120,8 +144,8 @@ router.get('/stats', (req, res) => {
 // Database: SELECTs every scheme, newest first
 // Response: 200 { schemes: [ ...all columns ] }
 // ---------------------------------------------------------------------------
-router.get('/schemes', (req, res) => {
-  const schemes = db.prepare('SELECT * FROM schemes ORDER BY id DESC').all();
+router.get('/schemes', async (req, res) => {
+  const schemes = await db.all('SELECT * FROM schemes ORDER BY id DESC');
   res.json({ schemes });
 });
 
@@ -131,20 +155,20 @@ router.get('/schemes', (req, res) => {
 // Database: INSERTs one row into schemes
 // Response: 201 { message, id }   or 400 { error } if the data is invalid
 // ---------------------------------------------------------------------------
-router.post('/schemes', (req, res) => {
+router.post('/schemes', async (req, res) => {
   const { error, scheme } = validateScheme(req.body);
   if (error) return res.status(400).json({ error });
 
-  const result = db.prepare(`
+  // RETURNING id gives us the id PostgreSQL just created
+  const result = await db.run(`
     INSERT INTO schemes (name, provider, type, description, benefit, deadline, official_link,
       allowed_states, allowed_categories, allowed_education, gender, max_income, min_marks,
       min_age, max_age, disability_required, required_documents)
-    VALUES (@name, @provider, @type, @description, @benefit, @deadline, @official_link,
-      @allowed_states, @allowed_categories, @allowed_education, @gender, @max_income, @min_marks,
-      @min_age, @max_age, @disability_required, @required_documents)
-  `).run(scheme);
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+    RETURNING id
+  `, schemeValues(scheme));
 
-  res.status(201).json({ message: 'Scheme added.', id: result.lastInsertRowid });
+  res.status(201).json({ message: 'Scheme added.', id: result.rows[0].id });
 });
 
 // ---------------------------------------------------------------------------
@@ -153,23 +177,26 @@ router.post('/schemes', (req, res) => {
 // Database: UPDATEs that row in schemes
 // Response: 200 { message }   400 if invalid, 404 if no scheme has that id
 // ---------------------------------------------------------------------------
-router.put('/schemes/:id', (req, res) => {
+router.put('/schemes/:id', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return res.status(404).json({ error: 'Scheme not found.' });
+
   const { error, scheme } = validateScheme(req.body);
   if (error) return res.status(400).json({ error });
 
-  const result = db.prepare(`
+  const result = await db.run(`
     UPDATE schemes SET
-      name = @name, provider = @provider, type = @type, description = @description,
-      benefit = @benefit, deadline = @deadline, official_link = @official_link,
-      allowed_states = @allowed_states, allowed_categories = @allowed_categories,
-      allowed_education = @allowed_education, gender = @gender, max_income = @max_income,
-      min_marks = @min_marks, min_age = @min_age, max_age = @max_age,
-      disability_required = @disability_required, required_documents = @required_documents
-    WHERE id = @id
-  `).run({ ...scheme, id: Number(req.params.id) });
+      name = $1, provider = $2, type = $3, description = $4,
+      benefit = $5, deadline = $6, official_link = $7,
+      allowed_states = $8, allowed_categories = $9,
+      allowed_education = $10, gender = $11, max_income = $12,
+      min_marks = $13, min_age = $14, max_age = $15,
+      disability_required = $16, required_documents = $17
+    WHERE id = $18
+  `, [...schemeValues(scheme), id]);
 
-  // result.changes is how many rows were updated: 0 means the id doesn't exist
-  if (result.changes === 0) return res.status(404).json({ error: 'Scheme not found.' });
+  // result.rowCount is how many rows were updated: 0 means the id doesn't exist
+  if (result.rowCount === 0) return res.status(404).json({ error: 'Scheme not found.' });
   res.json({ message: 'Scheme updated.' });
 });
 
@@ -177,12 +204,15 @@ router.put('/schemes/:id', (req, res) => {
 // DELETE /api/admin/schemes/:id
 // Request:  scheme id in the URL
 // Database: DELETEs the scheme. Because of ON DELETE CASCADE (see db.js),
-//           SQLite also deletes its rows in applications and document_checklist.
+//           PostgreSQL also deletes its rows in applications and document_checklist.
 // Response: 200 { message }   404 if no scheme has that id
 // ---------------------------------------------------------------------------
-router.delete('/schemes/:id', (req, res) => {
-  const result = db.prepare('DELETE FROM schemes WHERE id = ?').run(Number(req.params.id));
-  if (result.changes === 0) return res.status(404).json({ error: 'Scheme not found.' });
+router.delete('/schemes/:id', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return res.status(404).json({ error: 'Scheme not found.' });
+
+  const result = await db.run('DELETE FROM schemes WHERE id = $1', [id]);
+  if (result.rowCount === 0) return res.status(404).json({ error: 'Scheme not found.' });
   res.json({ message: 'Scheme deleted.' });
 });
 

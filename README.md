@@ -5,7 +5,7 @@ welfare schemes they are eligible for. You fill in your details once (age, state
 income, education, marks, disability). The app checks every scheme and labels it
 **Eligible**, **Possibly Eligible** or **Not Eligible**, and explains why in plain sentences.
 
-Web Technology course project, built with **Node.js + Express + SQLite + plain HTML/CSS/JavaScript**.
+Web Technology course project, built with **Node.js + Express + PostgreSQL + plain HTML/CSS/JavaScript**.
 
 - How the whole app works, step by step: [FLOW.md](FLOW.md)
 - Full test checklist and results: [TESTING.md](TESTING.md)
@@ -14,7 +14,7 @@ Web Technology course project, built with **Node.js + Express + SQLite + plain H
 
 ## 1. Setup
 
-You need **Node.js 18 or newer** (we used Node 24). Check with `node -v`.
+You need **Node.js 20 or newer** (we used Node 24; check with `node -v`) and a **PostgreSQL** database.
 
 ```bash
 # 1. Install the packages listed in package.json
@@ -24,7 +24,7 @@ npm install
 copy .env.example .env      # Windows
 cp .env.example .env        # Mac / Linux
 
-# 3. Open .env and set JWT_SECRET to any long random text
+# 3. Open .env and set DATABASE_URL (your PostgreSQL URL) and JWT_SECRET (any long random text)
 
 # 4. Start the server
 npm start
@@ -32,32 +32,47 @@ npm start
 
 Open **http://localhost:3000** in your browser.
 
-The first start creates `data.sqlite` with all the tables, 12 sample schemes and the two test
-accounts below. To reset everything, stop the server, delete `data.sqlite` and run `npm start` again.
+The data is stored in **PostgreSQL**. On the first start the server creates all the tables and adds
+12 sample schemes and the two test accounts below. Later starts keep everything that is already there.
+If `DATABASE_URL` is missing, the server stops with a clear error message.
+
+**Which database to use on your laptop:** the simplest option is the **External Database URL** of your
+Render database (Render dashboard → your database → *Connections*). Your laptop and the live site then
+share the same data. You can also install PostgreSQL locally. If you do, create the database with UTF-8
+encoding (`CREATE DATABASE schemefinder ENCODING 'UTF8' TEMPLATE template0;`), because the scheme data
+contains the ₹ symbol.
 
 ### `.env` settings
 
 | Variable | Needed? | What it does |
 |---|---|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection URL, e.g. `postgres://user:password@host:5432/dbname`. Keep it secret. SSL is turned on automatically for Render's external URL (`...render.com`), or set `DATABASE_SSL=true` for another host that needs SSL. |
 | `JWT_SECRET` | Yes | Secret used to sign login tokens. If it is missing, a default dev secret is used and a warning is printed. |
 | `PORT` | No | Port to run on (default `3000`). |
 | `ANTHROPIC_API_KEY` | No | Only for the "Explain in simple words" button. Without it, the app uses a rule-based explanation. Everything works without a key. |
 
 ### Deploying online (Render, free)
 
-1. Push this project to a GitHub repository (`.env`, `data.sqlite` and `node_modules` are not uploaded, see `.gitignore`).
-2. On [render.com](https://render.com) sign in with GitHub → **New → Web Service** → pick the repository.
-3. Settings: **Language** Node · **Build command** `npm install` · **Start command** `npm start` · **Instance type** Free.
-4. **Environment variables:** add `JWT_SECRET` = any long random text. (`PORT` is set by Render automatically.
-   Add `ANTHROPIC_API_KEY` only if you want the AI explanation.)
-5. Click **Deploy**. When the log shows `Server running`, open the `https://<name>.onrender.com` link.
+1. Push this project to a GitHub repository (`.env` and `node_modules` are not uploaded, see `.gitignore`).
+2. On [render.com](https://render.com): **New → PostgreSQL** → create a free database.
+3. **New → Web Service** → pick the repository. Settings: **Language** Node · **Build command** `npm install` ·
+   **Start command** `npm start` · **Instance type** Free.
+4. **Environment variables** of the web service:
+   - `DATABASE_URL` = the database's **Internal Database URL** (database page → *Connections*)
+   - `JWT_SECRET` = any long random text (Render's **Generate** button works)
+   - `PORT` is set by Render automatically. Add `ANTHROPIC_API_KEY` only if you want the AI explanation.
+5. Click **Deploy**. When the log shows `Connected to PostgreSQL, tables are ready` and `Server running`,
+   open the `https://<name>.onrender.com` link.
 
 **Good to know about the free plan:**
-- The disk is temporary. When the app restarts (after about 15 minutes with no visitors, or on every
-  new deploy), `data.sqlite` is created again from scratch. Accounts and data that users added are lost,
-  but the admin, the sample student and the 12 schemes are always recreated, so the demo still works.
+- Accounts, profiles, applications and checklists are stored in PostgreSQL, so they **survive restarts
+  and new deploys**.
 - After being idle, the first visit takes about 50 seconds while the app wakes up. Open the link a
   minute before a demo.
+- Render's free PostgreSQL databases have an expiry date. Check it on the database's page in the Render
+  dashboard and plan your demo before then.
+- The sample deadlines are set relative to the day the schemes were first inserted. After a few weeks they
+  will have passed. The admin can update them on the Admin page.
 
 ## 2. Test accounts
 
@@ -78,14 +93,13 @@ You can also register a new account from the login page.
 WEBTECH PROJECT/
 ├── package.json            Project info, dependencies and the "npm start" script
 ├── .env.example            Example settings; copy to .env
-├── data.sqlite             The database file (created automatically on first start)
 ├── README.md               This file
 ├── FLOW.md                 How the app works from browser to database and back
 ├── TESTING.md              Test checklist with results
 │
 ├── server/
 │   ├── index.js            Starts Express, serves /public, mounts all /api routes, handles errors
-│   ├── db.js               Opens data.sqlite, creates the 5 tables, inserts seed data
+│   ├── db.js               Connects to PostgreSQL (DATABASE_URL), creates the 5 tables, inserts seed data
 │   ├── middleware/
 │   │   └── auth.js         requireAuth (checks the JWT) and requireAdmin (checks role = admin)
 │   ├── routes/
@@ -171,7 +185,7 @@ Error responses always look like `{ "error": "message" }`, with status 400 (bad 
 | Part | What we used |
 |---|---|
 | Server | Node.js + Express 5 |
-| Database | SQLite through `better-sqlite3` (one local file, `data.sqlite`) |
+| Database | PostgreSQL through the `pg` package (on Render: a Render PostgreSQL database) |
 | Passwords | `bcryptjs` (hashing) |
 | Login sessions | `jsonwebtoken` (JWT in the `Authorization` header) |
 | Settings | `dotenv` (reads `.env`) |
